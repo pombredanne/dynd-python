@@ -10,7 +10,7 @@
 #include <dynd/memblock/external_memory_block.hpp>
 
 #include "elwise_reduce_gfunc_functions.hpp"
-#include "ndobject_functions.hpp"
+#include "array_functions.hpp"
 #include "utility_functions.hpp"
 #include "ctypes_interop.hpp"
 
@@ -19,12 +19,12 @@ using namespace dynd;
 using namespace pydynd;
 
 static void create_elwise_reduce_gfunc_kernel_from_ctypes(dynd::codegen_cache& cgcache,
-            PyCFuncPtrObject *cfunc, bool associative, bool commutative, const ndobject& identity,
+            PyCFuncPtrObject *cfunc, bool associative, bool commutative, const nd::array& identity,
             dynd::gfunc::elwise_reduce_kernel& out_kernel)
 {
 #if 0 // TODO reenable
-    dtype& returntype = out_kernel.m_returntype;
-    vector<dtype> &paramtypes = out_kernel.m_paramtypes;
+    ndt::type& returntype = out_kernel.m_returntype;
+    vector<ndt::type> &paramtypes = out_kernel.m_paramtypes;
     get_ctypes_signature(cfunc, returntype, paramtypes);
 
     out_kernel.m_associative = associative;
@@ -67,17 +67,17 @@ static void create_elwise_reduce_gfunc_kernel_from_ctypes(dynd::codegen_cache& c
         throw std::runtime_error(ss.str());
     }
 
-    // If an identity is provided, get an immutable version of it as the reduction dtype
+    // If an identity is provided, get an immutable version of it as the reduction type
     if (!identity.empty()) {
         out_kernel.m_identity = identity.cast_scalars(returntype).eval_immutable();
     } else {
-        out_kernel.m_identity = ndobject();
+        out_kernel.m_identity = nd::array();
     }
 #endif // TODO reenable
 }
 
 void pydynd::elwise_reduce_gfunc_add_kernel(dynd::gfunc::elwise_reduce& gf, dynd::codegen_cache& cgcache, PyObject *kernel,
-                            bool associative, bool commutative, const dynd::ndobject& identity)
+                            bool associative, bool commutative, const dynd::nd::array& identity)
 {
 #if 0 // TODO reenable
     if (PyObject_IsSubclass((PyObject *)Py_TYPE(kernel), ctypes.PyCFuncPtrType_Type)) {
@@ -100,9 +100,9 @@ PyObject *pydynd::elwise_reduce_gfunc_call(dynd::gfunc::elwise_reduce& gf, PyObj
     Py_ssize_t nargs = PySequence_Size(args);
     if (nargs == 1) {
         pyobject_ownref arg0_obj(PySequence_GetItem(args, 0));
-        ndobject arg0;
-        ndobject_init_from_pyobject(arg0, arg0_obj);
-        int ndim = arg0.get_dtype().get_undim();
+        nd::array arg0;
+        array_init_from_pyobject(arg0, arg0_obj);
+        int ndim = arg0.get_type().get_ndim();
 
         shortvector<dynd_bool> reduce_axes(ndim);
 
@@ -117,8 +117,8 @@ PyObject *pydynd::elwise_reduce_gfunc_call(dynd::gfunc::elwise_reduce& gf, PyObj
         // keepdims
         bool keepdims = pyarg_bool(PyDict_GetItemString(kwargs, "keepdims"), "keepdims", false);
 
-        vector<dtype> argtypes(1);
-        argtypes[0] = arg0.get_dtype().value_dtype();
+        vector<ndt::type> argtypes(1);
+        argtypes[0] = arg0.get_type().value_type();
         const gfunc::elwise_reduce_kernel *ergk = gf.find_matching_kernel(argtypes);
         if (ergk != NULL) {
             if (axis_count > 1 && !ergk->m_commutative) {
@@ -128,17 +128,17 @@ PyObject *pydynd::elwise_reduce_gfunc_call(dynd::gfunc::elwise_reduce& gf, PyObj
             }
             throw std::runtime_error("pydynd::elwise_reduce_gfunc_call isn't implemented presently");
             /*
-            ndobject result(make_elwise_reduce_kernel_node_copy_kernel(
+            nd::array result(make_elwise_reduce_kernel_node_copy_kernel(
                         ergk->m_returntype, arg0.get_node(), reduce_axes.get(), rightassoc, keepdims, ergk->m_identity.get_node(),
                         (!rightassoc || ergk->m_commutative) ? ergk->m_left_associative_reduction_kernel :
                                 ergk->m_right_associative_reduction_kernel));
-            pyobject_ownref result_obj(WNDObject_Type->tp_alloc(WNDObject_Type, 0));
-            ((WNDObject *)result_obj.get())->v.swap(result);
+            pyobject_ownref result_obj(WArray_Type->tp_alloc(WArray_Type, 0));
+            ((WArray *)result_obj.get())->v.swap(result);
             return result_obj.release();
             */
         } else {
             std::stringstream ss;
-            ss << gf.get_name() << ": could not find a gfunc kernel matching input dtype (" << argtypes[0] << ")";
+            ss << gf.get_name() << ": could not find a gfunc kernel matching input type (" << argtypes[0] << ")";
             throw std::runtime_error(ss.str());
         }
     } else {

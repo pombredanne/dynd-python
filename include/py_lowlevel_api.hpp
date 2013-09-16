@@ -8,8 +8,8 @@
 
 #include <dynd/lowlevel_api.hpp>
 
-#include "ndobject_functions.hpp"
-#include "dtype_functions.hpp"
+#include "array_functions.hpp"
+#include "type_functions.hpp"
 
 namespace pydynd {
 
@@ -25,10 +25,11 @@ struct py_lowlevel_api_t {
     uintptr_t version;
     // Extracts the dynd object pointers from their Python wrappers.
     // These functions do not check the type of the arguments.
-    dynd::ndobject_preamble *(*get_ndobject_ptr)(WNDObject *obj);
-    const dynd::base_dtype *(*get_base_dtype_ptr)(WDType *obj);
-    PyObject *(*ndobject_from_ptr)(PyObject *dt, PyObject *ptr, PyObject *owner, PyObject *access);
-    PyObject *(*make_single_assignment_kernel)(PyObject *dst_dt_obj, PyObject *src_dt_obj, PyObject *kerntype, void *out_dki_ptr);
+    dynd::array_preamble *(*get_array_ptr)(WArray *obj);
+    const dynd::base_type *(*get_base_type_ptr)(WType *obj);
+    PyObject *(*array_from_ptr)(PyObject *dt, PyObject *ptr, PyObject *owner, PyObject *access);
+    PyObject *(*make_assignment_kernel)(PyObject *dst_dt_obj, PyObject *src_dt_obj, PyObject *kerntype, void *out_cki_ptr);
+    PyObject *(*numpy_typetuples_from_ufunc)(PyObject *ufunc);
 };
 
 } // namespace pydynd

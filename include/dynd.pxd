@@ -54,37 +54,37 @@ cdef extern from "<iostream>" namespace "std":
     extern ostream cout
 
 cdef extern from "<dynd/json_parser.hpp>" namespace "dynd":
-    ndobject dynd_parse_json_dtype "dynd::parse_json" (dtype&, ndobject&) except +translate_exception
-    void dynd_parse_json_ndobject "dynd::parse_json" (ndobject&, ndobject&) except +translate_exception
+    ndarray dynd_parse_json_type "dynd::parse_json" (ndt_type&, ndarray&) except +translate_exception
+    void dynd_parse_json_array "dynd::parse_json" (ndarray&, ndarray&) except +translate_exception
 
 cdef extern from "<dynd/json_formatter.hpp>" namespace "dynd":
-    ndobject dynd_format_json "dynd::format_json" (ndobject&) except +translate_exception
+    ndarray dynd_format_json "dynd::format_json" (ndarray&) except +translate_exception
 
-cdef extern from "<dynd/dtypes/datashape_formatter.hpp>" namespace "dynd":
-    string dynd_format_datashape "dynd::format_datashape" (ndobject&) except +translate_exception
-    string dynd_format_datashape "dynd::format_datashape" (dtype&) except +translate_exception
+cdef extern from "<dynd/types/datashape_formatter.hpp>" namespace "dynd":
+    string dynd_format_datashape "dynd::format_datashape" (ndarray&) except +translate_exception
+    string dynd_format_datashape "dynd::format_datashape" (ndt_type&) except +translate_exception
 
 cdef extern from "utility_functions.hpp" namespace "pydynd":
     object intptr_array_as_tuple(int, intptr_t *)
 
 cdef extern from "placement_wrappers.hpp" namespace "pydynd":
-    cdef struct dtype_placement_wrapper:
+    cdef struct ndt_type_placement_wrapper:
         pass
-    void placement_new(dtype_placement_wrapper&) except +translate_exception
-    void placement_delete(dtype_placement_wrapper&)
-    # dtype placement cast
-    dtype& GET(dtype_placement_wrapper&)
-    # dtype placement assignment
-    void SET(dtype_placement_wrapper&, dtype&)
+    void placement_new(ndt_type_placement_wrapper&) except +translate_exception
+    void placement_delete(ndt_type_placement_wrapper&)
+    # type placement cast
+    ndt_type& GET(ndt_type_placement_wrapper&)
+    # type placement assignment
+    void SET(ndt_type_placement_wrapper&, ndt_type&)
 
-    cdef struct ndobject_placement_wrapper:
+    cdef struct array_placement_wrapper:
         pass
-    void placement_new(ndobject_placement_wrapper&) except +translate_exception
-    void placement_delete(ndobject_placement_wrapper&)
-    # ndobject placement cast
-    ndobject& GET(ndobject_placement_wrapper&)
-    # ndobject placement assignment
-    void SET(ndobject_placement_wrapper&, ndobject&)
+    void placement_new(array_placement_wrapper&) except +translate_exception
+    void placement_delete(array_placement_wrapper&)
+    # nd::array placement cast
+    ndarray& GET(array_placement_wrapper&)
+    # nd::array placement assignment
+    void SET(array_placement_wrapper&, ndarray&)
 
 #    cdef struct codegen_cache_placement_wrapper:
 #        pass

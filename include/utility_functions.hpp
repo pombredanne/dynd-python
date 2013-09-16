@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <dynd/dtype.hpp>
+#include <dynd/type.hpp>
 
 namespace pydynd {
 
@@ -134,7 +134,7 @@ int pyobject_as_int_index(PyObject *index);
 dynd::irange pyobject_as_irange(PyObject *index);
 std::string pystring_as_string(PyObject *str);
 
-void pyobject_as_vector_dtype(PyObject *list_dtype, std::vector<dynd::dtype>& vector_dtype);
+void pyobject_as_vector_ndt_type(PyObject *list_dtype, std::vector<dynd::ndt::type>& vector_dtype);
 void pyobject_as_vector_string(PyObject *list_string, std::vector<std::string>& vector_string);
 void pyobject_as_vector_intp(PyObject *list_index, std::vector<intptr_t>& vector_intp,
                 bool allow_int);
@@ -208,6 +208,13 @@ int pyarg_strings_to_int(PyObject *obj, const char *argname, int default_value,
                 const char *string1, int value1,
                 const char *string2, int value2,
                 const char *string3, int value3);
+
+int pyarg_strings_to_int(PyObject *obj, const char *argname, int default_value,
+                const char *string0, int value0,
+                const char *string1, int value1,
+                const char *string2, int value2,
+                const char *string3, int value3,
+                const char *string4, int value4);
 
 bool pyarg_bool(PyObject *obj, const char *argname, bool default_value);
 
