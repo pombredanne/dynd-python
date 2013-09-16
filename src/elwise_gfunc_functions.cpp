@@ -10,7 +10,7 @@
 #include <dynd/memblock/external_memory_block.hpp>
 
 #include "elwise_gfunc_functions.hpp"
-#include "ndobject_functions.hpp"
+#include "array_functions.hpp"
 #include "utility_functions.hpp"
 #include "ctypes_interop.hpp"
 
@@ -21,8 +21,8 @@ using namespace pydynd;
 static void create_elwise_gfunc_kernel_from_ctypes(dynd::codegen_cache& cgcache, PyCFuncPtrObject *cfunc, dynd::gfunc::elwise_kernel& out_kernel)
 {
 #if 0 // TODO reenable
-    dtype& returntype = out_kernel.m_returntype;
-    vector<dtype> &paramtypes = out_kernel.m_paramtypes;
+    ndt::type& returntype = out_kernel.m_returntype;
+    vector<ndt::type> &paramtypes = out_kernel.m_paramtypes;
     get_ctypes_signature(cfunc, returntype, paramtypes);
 
     if (returntype.get_type_id() == void_type_id) {
@@ -68,13 +68,13 @@ PyObject *pydynd::elwise_gfunc_call(dynd::gfunc::elwise& gf, PyObject *args, PyO
 #if 0 // TODO reenable
     Py_ssize_t nargs = PySequence_Size(args);
 
-    // Convert the args into ndobjects, and get the value dtypes
-    vector<ndobject> ndobject_args(nargs);
-    vector<dtype> argtypes(nargs);
+    // Convert the args into nd::arrays, and get the value types
+    vector<nd::array> array_args(nargs);
+    vector<ndt::type> argtypes(nargs);
     for (Py_ssize_t i = 0; i < nargs; ++i) {
         pyobject_ownref arg_obj(PySequence_GetItem(args, i));
-        ndobject_init_from_pyobject(ndobject_args[i], arg_obj);
-        argtypes[i] = ndobject_args[i].get_dtype().value_dtype();
+        array_init_from_pyobject(array_args[i], arg_obj);
+        argtypes[i] = array_args[i].get_type().value_type();
     }
 
     const gfunc::elwise_kernel *egk;
@@ -97,16 +97,16 @@ PyObject *pydynd::elwise_gfunc_call(dynd::gfunc::elwise& gf, PyObject *args, PyO
     return NULL;
     /*
     if (nargs == 1) {
-        ndobject result(make_elwise_unary_kernel_node_copy_kernel(
-                    egk->m_returntype, ndobject_args[0].get_node(), egk->m_unary_kernel));
-        pyobject_ownref result_obj(WNDObject_Type->tp_alloc(WNDObject_Type, 0));
-        ((WNDObject *)result_obj.get())->v.swap(result);
+        nd::array result(make_elwise_unary_kernel_node_copy_kernel(
+                    egk->m_returntype, array_args[0].get_node(), egk->m_unary_kernel));
+        pyobject_ownref result_obj(WArray_Type->tp_alloc(WArray_Type, 0));
+        ((WArray *)result_obj.get())->v.swap(result);
         return result_obj.release();
     } else if (nargs == 2) {
-        ndobject result(make_elwise_binary_kernel_node_copy_kernel(
-                    egk->m_returntype, ndobject_args[0].get_node(), ndobject_args[1].get_node(), egk->m_binary_kernel));
-        pyobject_ownref result_obj(WNDObject_Type->tp_alloc(WNDObject_Type, 0));
-        ((WNDObject *)result_obj.get())->v.swap(result);
+        nd::array result(make_elwise_binary_kernel_node_copy_kernel(
+                    egk->m_returntype, array_args[0].get_node(), array_args[1].get_node(), egk->m_binary_kernel));
+        pyobject_ownref result_obj(WArray_Type->tp_alloc(WArray_Type, 0));
+        ((WArray *)result_obj.get())->v.swap(result);
         return result_obj.release();
     } else {
         PyErr_SetString(PyExc_TypeError, "Elementwise gfuncs only support 1 or 2 arguments presently");

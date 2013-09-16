@@ -12,9 +12,9 @@ class TestComputedFields(unittest.TestCase):
         b = nd.add_computed_fields(a,
                 [('twice', np.int32, '2 * xyz'),
                  ('onemore', np.int16, 'xyz + 1')])
-        self.assertEqual(b.dtype.element_dtype.type_id, 'unary_expr')
-        self.assertEqual(b.dtype.element_dtype.value_dtype,
-                nd.dtype('{xyz: int32; twice: int32; onemore: int16}'))
+        self.assertEqual(nd.type_of(b).element_type.type_id, 'unary_expr')
+        self.assertEqual(nd.type_of(b).element_type.value_type,
+                ndt.type('{xyz: int32; twice: int32; onemore: int16}'))
         self.assertEqual(nd.as_py(b.xyz), [1, 2, 3, 4, 5])
         self.assertEqual(nd.as_py(b.twice), [2, 4, 6, 8, 10])
         self.assertEqual(nd.as_py(b.onemore), [2, 3, 4, 5, 6])
@@ -28,8 +28,8 @@ class TestComputedFields(unittest.TestCase):
                         ('product', np.float32, 'x * y'),
                         ('complex', np.complex64, 'x + 1j*y')],
                 rm_fields=['x', 'y'])
-        self.assertEqual(b.dtype.element_dtype.value_dtype,
-                nd.dtype('{sum: float32; difference: float32;' +
+        self.assertEqual(nd.type_of(b).element_type.value_type,
+                ndt.type('{sum: float32; difference: float32;' +
                     ' product: float32; complex: cfloat32}'))
         self.assertEqual(nd.as_py(b.sum), [3, 0, 7]),
         self.assertEqual(nd.as_py(b.difference), [-1, -2, -3])
@@ -37,14 +37,14 @@ class TestComputedFields(unittest.TestCase):
         self.assertEqual(nd.as_py(b.complex), [1+2j, -1+1j, 2+5j])
 
     def test_aggregate(self):
-        a = nd.ndobject([
+        a = nd.array([
             ('A', 1, 2),
             ('A', 3, 4),
             ('B', 1.5, 2.5),
             ('A', 0.5, 9),
             ('C', 1, 5),
             ('B', 2, 2)],
-            udtype='{cat: string; x: float32; y: float32}')
+            dtype='{cat: string; x: float32; y: float32}')
         gb = nd.groupby(a, nd.fields(a, 'cat')).eval()
         b = nd.make_computed_fields(gb, 1,
                 fields=[('sum_x', ndt.float32, 'sum(x)'),
@@ -57,4 +57,4 @@ class TestComputedFields(unittest.TestCase):
         self.assertEqual(nd.as_py(b.max_y), [9, 2.5, 5])
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)

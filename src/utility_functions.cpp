@@ -4,11 +4,11 @@
 //
 
 #include "utility_functions.hpp"
-#include "dtype_functions.hpp"
-#include "ndobject_functions.hpp"
+#include "type_functions.hpp"
+#include "array_functions.hpp"
 
 #include <dynd/exceptions.hpp>
-#include <dynd/ndobject.hpp>
+#include <dynd/array.hpp>
 
 #include <Python.h>
 
@@ -125,14 +125,14 @@ std::string pydynd::pystring_as_string(PyObject *str)
         }
         return string(data, len);
 #endif
-    } else if (WNDObject_Check(str)) {
-        const ndobject& n = ((WNDObject *)str)->v;
-        if (n.get_dtype().value_dtype().get_kind() == string_kind) {
+    } else if (WArray_Check(str)) {
+        const nd::array& n = ((WArray *)str)->v;
+        if (n.get_type().value_type().get_kind() == string_kind) {
             return n.as<string>();
         } else {
             stringstream ss;
             ss << "Cannot implicitly convert object of type ";
-            ss << n.get_dtype() << " to string";
+            ss << n.get_type() << " to string";
             throw runtime_error(ss.str());
         }
     } else {
@@ -140,13 +140,13 @@ std::string pydynd::pystring_as_string(PyObject *str)
     }
 }
 
-void pydynd::pyobject_as_vector_dtype(PyObject *list_dtype, std::vector<dynd::dtype>& vector_dtype)
+void pydynd::pyobject_as_vector_ndt_type(PyObject *list_of_types, std::vector<dynd::ndt::type>& vector_of_ndt_types)
 {
-    Py_ssize_t size = PySequence_Size(list_dtype);
-    vector_dtype.resize(size);
+    Py_ssize_t size = PySequence_Size(list_of_types);
+    vector_of_ndt_types.resize(size);
     for (Py_ssize_t i = 0; i < size; ++i) {
-        pyobject_ownref item(PySequence_GetItem(list_dtype, i));
-        vector_dtype[i] = make_dtype_from_pyobject(item.get());
+        pyobject_ownref item(PySequence_GetItem(list_of_types, i));
+        vector_of_ndt_types[i] = make_ndt_type_from_pyobject(item.get());
     }
 }
 
@@ -392,6 +392,36 @@ int pydynd::pyarg_strings_to_int(PyObject *obj, const char *argname, int default
     throw runtime_error(ss.str());
 }
 
+int pydynd::pyarg_strings_to_int(PyObject *obj, const char *argname, int default_value,
+                const char *string0, int value0,
+                const char *string1, int value1,
+                const char *string2, int value2,
+                const char *string3, int value3,
+                const char *string4, int value4)
+{
+    if (obj == NULL || obj == Py_None) {
+        return default_value;
+    }
+
+    string s = pystring_as_string(obj);
+
+    if (s == string0) {
+        return value0;
+    } else if (s == string1) {
+        return value1;
+    } else if (s == string2) {
+        return value2;
+    } else if (s == string3) {
+        return value3;
+    } else if (s == string4) {
+        return value4;
+    }
+
+    stringstream ss;
+    ss << "argument " << argname << " was given the invalid argument value \"" << s << "\"";
+    throw runtime_error(ss.str());
+}
+
 bool pydynd::pyarg_bool(PyObject *obj, const char *argname, bool default_value)
 {
     if (obj == NULL || obj == Py_None) {
@@ -419,9 +449,9 @@ uint32_t pydynd::pyarg_access_flags(PyObject* obj)
     while ((item_raw = PyIter_Next(iterator))) {
         pyobject_ownref item(item_raw);
         result |= (uint32_t)pyarg_strings_to_int(item, "access_flags", 0,
-                    "read", read_access_flag,
-                    "write", write_access_flag,
-                    "immutable", immutable_access_flag);
+                    "read", nd::read_access_flag,
+                    "write", nd::write_access_flag,
+                    "immutable", nd::immutable_access_flag);
     }
 
     if (PyErr_Occurred()) {

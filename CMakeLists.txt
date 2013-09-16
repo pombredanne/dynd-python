@@ -51,7 +51,7 @@ if (NOT PYTHON_PACKAGE_INSTALL_PREFIX)
 endif()
 
 # Require version >= 1.5
-if(NUMPY_VERSION_DECIMAL LESS 10500)
+if (NUMPY_VERSION_DECIMAL LESS 10500)
     message(FATAL_ERROR,
         "DyND-Python requires NumPy >= 1.5")
 endif()
@@ -69,9 +69,9 @@ else()
     set(DYND_INSTALL_LIB OFF)
     option(DYND_BUILD_TESTS "Build the googletest unit tests for libdynd." ON)
 
-    if (NOT EXISTS "${PROJECT_SOURCE_DIR}/libraries/libdynd/include/dynd/ndobject.hpp")
+    if (NOT EXISTS "${PROJECT_SOURCE_DIR}/libraries/libdynd/include/dynd/array.hpp")
         message(FATAL_ERROR
-            "The libdynd C++ library must be placed inlibraries/libdynd."
+            "The libdynd C++ library must be placed in libraries/libdynd."
             "Remove any temporary CMake"
             "files, then if you're using git, run"
             "'git clone git@github.com:ContinuumIO/libdynd.git'"
@@ -134,18 +134,19 @@ set(pydynd_CPP_SRC
     include/ctypes_interop.hpp
     include/do_import_array.hpp
     include/placement_wrappers.hpp
-    include/dtype_functions.hpp
+    include/type_functions.hpp
     include/elwise_map.hpp
     include/exception_translation.hpp
     include/gfunc_callable_functions.hpp
     include/git_version.hpp
-    include/ndobject_functions.hpp
-    include/ndobject_from_py.hpp
-    include/ndobject_assign_from_py.hpp
-    include/ndobject_as_pep3118.hpp
-    include/ndobject_as_numpy.hpp
-    include/ndobject_as_py.hpp
+    include/array_functions.hpp
+    include/array_from_py.hpp
+    include/array_assign_from_py.hpp
+    include/array_as_pep3118.hpp
+    include/array_as_numpy.hpp
+    include/array_as_py.hpp
     include/numpy_interop.hpp
+    include/numpy_ufunc_kernel.hpp
     include/py_lowlevel_api.hpp
     include/elwise_gfunc_functions.hpp
     include/elwise_reduce_gfunc_functions.hpp
@@ -153,17 +154,18 @@ set(pydynd_CPP_SRC
     include/vm_elwise_program_functions.hpp
     src/codegen_cache_functions.cpp
     src/ctypes_interop.cpp
-    src/dtype_functions.cpp
+    src/type_functions.cpp
     src/elwise_map.cpp
     src/gfunc_callable_functions.cpp
     src/exception_translation.cpp
-    src/ndobject_functions.cpp
-    src/ndobject_from_py.cpp
-    src/ndobject_assign_from_py.cpp
-    src/ndobject_as_pep3118.cpp
-    src/ndobject_as_numpy.cpp
-    src/ndobject_as_py.cpp
+    src/array_functions.cpp
+    src/array_from_py.cpp
+    src/array_assign_from_py.cpp
+    src/array_as_pep3118.cpp
+    src/array_as_numpy.cpp
+    src/array_as_py.cpp
     src/numpy_interop.cpp
+    src/numpy_ufunc_kernel.cpp
     src/py_lowlevel_api.cpp
     src/elwise_gfunc_functions.cpp
     src/elwise_reduce_gfunc_functions.cpp
@@ -176,8 +178,8 @@ set(pydynd_CYTHON_SRC
     src/_pydynd.pyx
     include/codegen_cache.pxd
     include/dynd.pxd
-    include/dtype.pxd
-    include/ndobject.pxd
+    include/ndt_type.pxd
+    include/array.pxd
     include/gfunc_callable.pxd
     include/elwise_gfunc.pxd
     include/elwise_reduce_gfunc.pxd

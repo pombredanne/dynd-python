@@ -31,15 +31,17 @@
 #endif
 
 #define PY_ARRAY_UNIQUE_SYMBOL pydynd_ARRAY_API
+#define PY_UFUNC_UNIQUE_SYMBOL pydynd_UFUNC_API
 // Invert the importing signal to match how numpy wants it
 #ifndef NUMPY_IMPORT_ARRAY
 # define NO_IMPORT_ARRAY
+# define NO_IMPORT_UFUNC
 #endif
 
 #include <sstream>
 
-#include <dynd/dtype.hpp>
-#include <dynd/ndobject.hpp>
+#include <dynd/type.hpp>
+#include <dynd/array.hpp>
 
 #include <numpy/ndarrayobject.h>
 #include <numpy/ufuncobject.h>
@@ -67,73 +69,81 @@ inline int import_numpy()
 }
 
 /**
- * Converts a numpy dtype to a dynd::dtype. Use the data_alignment
+ * Converts a numpy dtype to a dynd type. Use the data_alignment
  * parameter to get accurate alignment, as Numpy may have misaligned data,
  * or may report a smaller alignment than is necessary based on the data.
  *
- * \param d  The Numpy dtype to convert.
+ * \param d  The numpy dtype to convert.
  * \param data_alignment  If associated with particular data, the actual
  *                        alignment of that data. The default of zero
  *                        causes it to use Numpy's data alignment.
  *
- * \returns  The dynd equivalent of the Numpy dtype.
+ * \returns  The dynd equivalent of the numpy dtype.
  */
-dynd::dtype dtype_from_numpy_dtype(PyArray_Descr *d, size_t data_alignment = 0);
+dynd::ndt::type ndt_type_from_numpy_dtype(PyArray_Descr *d, size_t data_alignment = 0);
 
 /**
- * When the function dtype_from_numpy_dtype returns a dtype which requires
+ * When the function ndt_type_from_numpy_dtype returns a type which requires
  * additional metadata to be filled in, this function should be called to populate
- * that metadata in a created ndobject.
+ * that metadata in a created nd::array.
  *
- * \param dt  The dtype returned by dtype_from_numpy_dtype.
- * \param d  The numpy dtype passed to dtype_from_numpy_dtype.
+ * \param dt  The dynd type returned by ndt_type_from_numpy_dtype.
+ * \param d  The numpy dtype passed to ndt_type_from_numpy_dtype.
  * \param metadata  A pointer to the metadata to populate.
  */
-void fill_metadata_from_numpy_dtype(const dynd::dtype& dt, PyArray_Descr *d, char *metadata);
+void fill_metadata_from_numpy_dtype(const dynd::ndt::type& dt, PyArray_Descr *d, char *metadata);
 
 /**
- * Converts a dynd::dtype to a numpy dtype.
+ * Converts a dynd type to a numpy dtype.
  *
- * \param dt  The dtype to convert.
+ * \param dt  The dynd type to convert.
  */
-PyArray_Descr *numpy_dtype_from_dtype(const dynd::dtype& dt);
+PyArray_Descr *numpy_dtype_from_ndt_type(const dynd::ndt::type& dt);
 
 /**
- * Converts a dynd::dtype to a numpy dtype, also supporting dtypes which
+ * Converts a dynd type to a numpy dtype, also supporting types which
  * rely on their metadata for field offset information.
  *
- * \param dt  The dtype to convert.
- * \param metadata  The metadata for the dtype.
+ * \param dt  The dynd type to convert.
+ * \param metadata  The metadata for the dynd type.
  */
-PyArray_Descr *numpy_dtype_from_dtype(const dynd::dtype& dt, const char *metadata);
+PyArray_Descr *numpy_dtype_from_ndt_type(const dynd::ndt::type& dt, const char *metadata);
 
 /**
- * Converts a pytypeobject for a numpy scalar
- * into a dynd::dtype.
+ * Converts a pytypeobject for a n`umpy scalar
+ * into a dynd type.
  *
  * Returns 0 on success, -1 if it didn't match.
  */
-int dtype_from_numpy_scalar_typeobject(PyTypeObject* obj, dynd::dtype& out_d);
+int ndt_type_from_numpy_scalar_typeobject(PyTypeObject* obj, dynd::ndt::type& out_d);
 
 /**
- * Gets the dtype of a numpy scalar object
+ * Gets the dynd type of a numpy scalar object
  */
-dynd::dtype dtype_of_numpy_scalar(PyObject* obj);
+dynd::ndt::type ndt_type_of_numpy_scalar(PyObject* obj);
 
 /**
- * Views a Numpy PyArrayObject as a dynd::ndobject.
+ * Views or copies a numpy PyArrayObject as an nd::array.
+ *
+ * \param obj  The numpy array object.
+ * \param access_flags  The requested access flags (0 for default).
+ * \param always_copy  If true, produce a copy instead of a view.
  */
-dynd::ndobject ndobject_from_numpy_array(PyArrayObject* obj);
+dynd::nd::array array_from_numpy_array(PyArrayObject* obj, uint32_t access_flags, bool always_copy);
 
 /**
- * Creates a dynd::ndobject from a numpy scalar.
+ * Creates a dynd::nd::array from a numpy scalar. This always produces
+ * a copy.
+ *
+ * \param obj  The numpy scalar object.
+ * \param access_flags  The requested access flags (0 for default).
  */
-dynd::ndobject ndobject_from_numpy_scalar(PyObject* obj);
+dynd::nd::array array_from_numpy_scalar(PyObject* obj, uint32_t access_flags);
 
 /**
  * Returns the numpy kind ('i', 'f', etc) of the array.
  */
-char numpy_kindchar_of(const dynd::dtype& d);
+char numpy_kindchar_of(const dynd::ndt::type& d);
 
 } // namespace pydynd
 

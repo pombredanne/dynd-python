@@ -5,16 +5,16 @@
 
 #include <Python.h>
 
-#include <dynd/dtypes/fixedstring_dtype.hpp>
-#include <dynd/dtypes/cstruct_dtype.hpp>
-#include <dynd/dtypes/fixed_dim_dtype.hpp>
-#include <dynd/dtypes/struct_dtype.hpp>
-#include <dynd/dtypes/strided_dim_dtype.hpp>
-#include <dynd/dtypes/pointer_dtype.hpp>
-#include <dynd/dtypes/dtype_alignment.hpp>
+#include <dynd/types/fixedstring_type.hpp>
+#include <dynd/types/cstruct_type.hpp>
+#include <dynd/types/fixed_dim_type.hpp>
+#include <dynd/types/struct_type.hpp>
+#include <dynd/types/strided_dim_type.hpp>
+#include <dynd/types/pointer_type.hpp>
+#include <dynd/types/type_alignment.hpp>
 
 #include "ctypes_interop.hpp"
-#include "dtype_functions.hpp"
+#include "type_functions.hpp"
 #include "utility_functions.hpp"
 
 using namespace std;
@@ -114,7 +114,7 @@ calling_convention_t pydynd::get_ctypes_calling_convention(PyCFuncPtrObject* cfu
 #endif
 }
 
-void pydynd::get_ctypes_signature(PyCFuncPtrObject* cfunc, dtype& out_returntype, std::vector<dynd::dtype>& out_paramtypes)
+void pydynd::get_ctypes_signature(PyCFuncPtrObject* cfunc, ndt::type& out_returntype, std::vector<dynd::ndt::type>& out_paramtypes)
 {
     // The fields restype and argtypes are not always stored at the C level,
     // so must use the higher level getattr.
@@ -128,9 +128,9 @@ void pydynd::get_ctypes_signature(PyCFuncPtrObject* cfunc, dtype& out_returntype
     // Get the return type
     if (restype == Py_None) {
         // No return type
-        out_returntype = make_dtype<void>();
+        out_returntype = ndt::make_type<void>();
     } else {
-        out_returntype = dtype_from_ctypes_cdatatype(restype);
+        out_returntype = ndt_type_from_ctypes_cdatatype(restype);
     }
 
     Py_ssize_t argcount = PySequence_Size(argtypes);
@@ -144,26 +144,26 @@ void pydynd::get_ctypes_signature(PyCFuncPtrObject* cfunc, dtype& out_returntype
     // Get the argument types
     for (intptr_t i = 0; i < argcount; ++i) {
         pyobject_ownref element(PySequence_GetItem(argtypes, i));
-        out_paramtypes[i] = dtype_from_ctypes_cdatatype(element);
+        out_paramtypes[i] = ndt_type_from_ctypes_cdatatype(element);
     }
 }
 
 
-dynd::dtype pydynd::dtype_from_ctypes_cdatatype(PyObject *d)
+dynd::ndt::type pydynd::ndt_type_from_ctypes_cdatatype(PyObject *d)
 {
     if (!PyObject_IsSubclass(d, ctypes.PyCData_Type)) {
-        throw runtime_error("requested a dtype from a ctypes c data type, but the given object has the wrong type");
+        throw runtime_error("internal error: requested a dynd type from a ctypes c data type, but the given object has the wrong type");
     }
 
     // If the ctypes type has a _dynd_type_ property, that should be
-    // a pydynd dtype instance corresponding to the type. This is how
+    // a pydynd type instance corresponding to the type. This is how
     // the complex type is supported, for example.
     PyObject *dynd_type_obj = PyObject_GetAttrString(d, "_dynd_type_");
     if (dynd_type_obj == NULL) {
         PyErr_Clear();
     } else {
         pyobject_ownref dynd_type(dynd_type_obj);
-        return make_dtype_from_pyobject(dynd_type);
+        return make_ndt_type_from_pyobject(dynd_type);
     }
 
     // The simple C data types
@@ -176,49 +176,49 @@ dynd::dtype pydynd::dtype_from_ctypes_cdatatype(PyObject *d)
 
         switch (proto_str[0]) {
             case 'b':
-                return make_dtype<int8_t>();
+                return ndt::make_type<int8_t>();
             case 'B':
-                return make_dtype<uint8_t>();
+                return ndt::make_type<uint8_t>();
             case 'c':
-                return make_fixedstring_dtype(1, string_encoding_ascii);
+                return ndt::make_fixedstring(1, string_encoding_ascii);
             case 'd':
-                return make_dtype<double>();
+                return ndt::make_type<double>();
             case 'f':
-                return make_dtype<float>();
+                return ndt::make_type<float>();
             case 'h':
-                return make_dtype<int16_t>();
+                return ndt::make_type<int16_t>();
             case 'H':
-                return make_dtype<uint16_t>();
+                return ndt::make_type<uint16_t>();
             case 'i':
-                return make_dtype<int32_t>();
+                return ndt::make_type<int32_t>();
             case 'I':
-                return make_dtype<uint32_t>();
+                return ndt::make_type<uint32_t>();
             case 'l':
-                return make_dtype<long>();
+                return ndt::make_type<long>();
             case 'L':
-                return make_dtype<unsigned long>();
+                return ndt::make_type<unsigned long>();
             case 'q':
-                return make_dtype<int64_t>();
+                return ndt::make_type<int64_t>();
             case 'Q':
-                return make_dtype<uint64_t>();
+                return ndt::make_type<uint64_t>();
             default: {
                 stringstream ss;
-                ss << "The ctypes type code '" << proto_str[0] << "' cannot be converted to a dynd::dtype";
+                ss << "The ctypes type code '" << proto_str[0] << "' cannot be converted to a dynd type";
                 throw runtime_error(ss.str());
             }
         }
     } else if (PyObject_IsSubclass(d, ctypes.PyCPointerType_Type)) {
-        // Translate into a blockref pointer dtype
-        pyobject_ownref target_dtype_obj(PyObject_GetAttrString(d, "_type_"));
-        dtype target_dtype = dtype_from_ctypes_cdatatype(target_dtype_obj);
-        return make_pointer_dtype(target_dtype);
+        // Translate into a blockref pointer type
+        pyobject_ownref target_tp_obj(PyObject_GetAttrString(d, "_type_"));
+        ndt::type target_tp = ndt_type_from_ctypes_cdatatype(target_tp_obj);
+        return ndt::make_pointer(target_tp);
     } else if (PyObject_IsSubclass(d, ctypes.PyCStructType_Type)) {
-        // Translate into a cstruct or struct dtype
+        // Translate into a cstruct or struct type
         pyobject_ownref fields_list_obj(PyObject_GetAttrString(d, "_fields_"));
         if (!PyList_Check(fields_list_obj.get())) {
             throw runtime_error("The _fields_ member of the ctypes C struct is not a list");
         }
-        vector<dtype> field_types;
+        vector<ndt::type> field_types;
         vector<string> field_names;
         vector<size_t> field_offsets;
         Py_ssize_t field_count = PyList_GET_SIZE(fields_list_obj.get());
@@ -229,15 +229,15 @@ dynd::dtype pydynd::dtype_from_ctypes_cdatatype(PyObject *d)
                 ss << "The _fields_[" << i << "] member of the ctypes C struct is not a tuple of size 2";
                 throw runtime_error(ss.str());
             }
-            field_types.push_back(dtype_from_ctypes_cdatatype(PyTuple_GET_ITEM(item, 1)));
+            field_types.push_back(ndt_type_from_ctypes_cdatatype(PyTuple_GET_ITEM(item, 1)));
             PyObject *key = PyTuple_GET_ITEM(item, 0);
             field_names.push_back(pystring_as_string(key));
             pyobject_ownref field_data_obj(PyObject_GetAttr(d, key));
             pyobject_ownref field_data_offset_obj(PyObject_GetAttrString(field_data_obj.get(), "offset"));
             field_offsets.push_back(pyobject_as_index(field_data_offset_obj.get()));
-            // If the field isn't aligned as the dtype requires, make it into an unaligned version
+            // If the field isn't aligned as the type requires, make it into an unaligned version
             if (!offset_is_aligned(field_offsets.back(), field_types.back().get_data_alignment())) {
-                field_types.back() = make_unaligned_dtype(field_types.back());
+                field_types.back() = make_unaligned(field_types.back());
             }
         }
         pyobject_ownref total_size_obj(PyObject_CallMethod(ctypes._ctypes, (char *)"sizeof", (char *)"N", d));
@@ -245,22 +245,22 @@ dynd::dtype pydynd::dtype_from_ctypes_cdatatype(PyObject *d)
 
         if (is_cstruct_compatible_offsets(field_count, &field_types[0],
                         &field_offsets[0], total_size)) {
-            return make_cstruct_dtype(field_count, &field_types[0], &field_names[0]);
+            return ndt::make_cstruct(field_count, &field_types[0], &field_names[0]);
         } else {
-            return make_struct_dtype(field_types, field_names);
+            return ndt::make_struct(field_types, field_names);
         }
     } else if (PyObject_IsSubclass(d, ctypes.PyCArrayType_Type)) {
         // Translate into a either a fixed_dim or strided_dim
-        pyobject_ownref element_dtype_obj(PyObject_GetAttrString(d, "_type_"));
-        dtype element_dtype = dtype_from_ctypes_cdatatype(element_dtype_obj);
-        if (element_dtype.get_data_size() != 0) {
+        pyobject_ownref element_tp_obj(PyObject_GetAttrString(d, "_type_"));
+        ndt::type element_tp = ndt_type_from_ctypes_cdatatype(element_tp_obj);
+        if (element_tp.get_data_size() != 0) {
             pyobject_ownref array_length_obj(PyObject_GetAttrString(d, "_length_"));
             intptr_t array_length = pyobject_as_index(array_length_obj.get());
-            return make_fixed_dim_dtype(array_length, element_dtype);
+            return ndt::make_fixed_dim(array_length, element_tp);
         } else {
-            return make_strided_dim_dtype(element_dtype);
+            return ndt::make_strided_dim(element_tp);
         }
     }
 
-    throw runtime_error("Ctypes type object is not supported by dynd::dtype");
+    throw runtime_error("Ctypes type object is not supported by dynd type");
 }

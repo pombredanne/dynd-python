@@ -35,7 +35,7 @@ IF %ERRORLEVEL% NEQ 0 exit /b 1
 REM Use conda to create a conda environment of the required
 REM python version and containing the dependencies.
 SET PYENV_PREFIX=%WORKSPACE%\build\pyenv
-call .\buildscripts\create_conda_pyenv.bat %PYTHON_VERSION% %PYENV_PREFIX%
+C:\Anaconda\python .\buildscripts\create_conda_pyenv_retry.py %PYTHON_VERSION% %PYENV_PREFIX%
 IF %ERRORLEVEL% NEQ 0 exit /b 1
 echo on
 set PYTHON_EXECUTABLE=%PYENV_PREFIX%\Python.exe
@@ -89,11 +89,8 @@ cd ..
 rd /q /s pkgs
 mkdir pkgs
 cd pkgs
-if "%PROCESSOR_ARCHITECTURE%" == "AMD64" mkdir win-64
-if "%PROCESSOR_ARCHITECTURE%" == "AMD64" cd win-64
-if NOT "%PROCESSOR_ARCHITECTURE%" == "AMD64" mkdir win-32
-if NOT "%PROCESSOR_ARCHITECTURE%" == "AMD64" cd win-32
-
+mkdir win-%PYTHON_BITS%
+cd win-%PYTHON_BITS%
 
 REM Create a conda package from the build
 call C:\Anaconda\Scripts\conda package -p %PYENV_PREFIX% --pkg-name=dynd-python --pkg-version=%PYDYND_VERSION%
