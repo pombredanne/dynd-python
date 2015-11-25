@@ -20,7 +20,7 @@
 
 #=============================================================================
 # Copyright 2001-2009 Kitware, Inc.
-# Copyright 2012 Continuum Analytics, Inc.
+# Copyright 2012-2014 Continuum Analytics, Inc.
 #
 # All rights reserved.
 #
@@ -68,11 +68,14 @@ if(NOT PYTHONINTERP_FOUND)
 endif()
 
 # According to http://stackoverflow.com/questions/646518/python-how-to-detect-debug-interpreter
-# testing whether sys has the gettotalrefcount function is a reliable, cross-platform
-# way to detect a CPython debug interpreter.
+# testing whether sys has the gettotalrefcount function is a reliable,
+# cross-platform way to detect a CPython debug interpreter.
 #
 # The library suffix is from the config var LDVERSION sometimes, otherwise
 # VERSION. VERSION will typically be like "2.7" on unix, and "27" on windows.
+#
+# The config var LIBPL is for Linux, and helps on Debian Jessie where the
+# addition of multi-arch support shuffled things around.
 execute_process(COMMAND "${PYTHON_EXECUTABLE}" "-c"
     "from distutils import sysconfig as s;import sys;import struct;
 print('.'.join(str(v) for v in sys.version_info));
@@ -83,6 +86,7 @@ print(s.get_config_var('SO'));
 print(hasattr(sys, 'gettotalrefcount')+0);
 print(struct.calcsize('@P'));
 print(s.get_config_var('LDVERSION') or s.get_config_var('VERSION'));
+print(s.get_config_var('LIBPL'));
 "
     RESULT_VARIABLE _PYTHON_SUCCESS
     OUTPUT_VARIABLE _PYTHON_VALUES
@@ -109,6 +113,7 @@ list(GET _PYTHON_VALUES 4 PYTHON_MODULE_EXTENSION)
 list(GET _PYTHON_VALUES 5 PYTHON_IS_DEBUG)
 list(GET _PYTHON_VALUES 6 PYTHON_SIZEOF_VOID_P)
 list(GET _PYTHON_VALUES 7 PYTHON_LIBRARY_SUFFIX)
+list(GET _PYTHON_VALUES 8 PYTHON_LIBRARY_PATH)
 
 # Make sure the Python has the same pointer-size as the chosen compiler
 # Skip the check on OS X, it doesn't consistently have CMAKE_SIZEOF_VOID_P defined
@@ -135,14 +140,13 @@ string(REGEX REPLACE "\\\\" "/" PYTHON_PREFIX ${PYTHON_PREFIX})
 string(REGEX REPLACE "\\\\" "/" PYTHON_INCLUDE_DIR ${PYTHON_INCLUDE_DIR})
 string(REGEX REPLACE "\\\\" "/" PYTHON_SITE_PACKAGES ${PYTHON_SITE_PACKAGES})
 
-# TODO: All the nuances of CPython debug builds have not been dealt with/tested.
-if(PYTHON_IS_DEBUG)
-    set(PYTHON_MODULE_EXTENSION "_d${PYTHON_MODULE_EXTENSION}")
-endif()
-
 if(CMAKE_HOST_WIN32)
-    set(PYTHON_LIBRARY
-        "${PYTHON_PREFIX}/libs/Python${PYTHON_LIBRARY_SUFFIX}.lib")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        set(PYTHON_LIBRARY
+            "${PYTHON_PREFIX}/libs/Python${PYTHON_LIBRARY_SUFFIX}.lib")
+    else()
+        set(PYTHON_LIBRARY "${PYTHON_PREFIX}/libs/libpython${PYTHON_LIBRARY_SUFFIX}.a")
+    endif()
 elseif(APPLE)
      # Seems to require "-undefined dynamic_lookup" instead of linking
      # against the .dylib, otherwise it crashes. This flag is added
@@ -152,9 +156,9 @@ elseif(APPLE)
     #    "${PYTHON_PREFIX}/lib/libpython${PYTHON_LIBRARY_SUFFIX}.dylib")
 else()
     if(${PYTHON_SIZEOF_VOID_P} MATCHES 8)
-        set(_PYTHON_LIBS_SEARCH "${PYTHON_PREFIX}/lib64" "${PYTHON_PREFIX}/lib")
+        set(_PYTHON_LIBS_SEARCH "${PYTHON_PREFIX}/lib64" "${PYTHON_PREFIX}/lib" "${PYTHON_LIBRARY_PATH}")
     else()
-        set(_PYTHON_LIBS_SEARCH "${PYTHON_PREFIX}/lib")
+        set(_PYTHON_LIBS_SEARCH "${PYTHON_PREFIX}/lib" "${PYTHON_LIBRARY_PATH}")
     endif()
     message(STATUS "Searching for Python libs in ${_PYTHON_LIBS_SEARCH}")
     # Probably this needs to be more involved. It would be nice if the config
@@ -230,4 +234,3 @@ FUNCTION(PYTHON_ADD_MODULE _NAME )
 
   ENDIF(PYTHON_ENABLE_MODULE_${_NAME})
 ENDFUNCTION(PYTHON_ADD_MODULE)
-

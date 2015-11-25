@@ -16,6 +16,13 @@
 #   - Call the script from the root workspace
 #     directory as buildscripts/jenkins-build
 #
+#   - This script is currently hacked for centos5,
+#     with http://people.centos.org/tru/devtools-2/
+#     (a newer gcc) installed.
+#
+
+# Set options to echo every command and exit on error
+set -xe
 
 # Require a version of Python to be selected
 if [ "${PYTHON_VERSION}" == "" ]; then
@@ -24,14 +31,17 @@ if [ "${PYTHON_VERSION}" == "" ]; then
 fi
 
 if [ `uname` == Darwin ]; then
- # Use gcc instead of clang for now, there was a strange
- # interaction with exception handling/libunwind/cython's
- # exception translation mechanism on clang.
- export CC=gcc
- export CXX=g++
+  # Use default compiler on OSX
+  export CC=cc
+  export CXX=c++
 else
- export CC=cc
- export CXX=c++
+  # Enable devtoolset-2, a newer gcc toolchain
+  . /opt/rh/devtoolset-2/enable
+  # Statically link the standard C/C++ library, because
+  # we are building on an old centos5 machine.
+  export LDFLAGS="-static-libgcc -static-libstdc++"
+  export CC=gcc
+  export CXX=g++
 fi
 
 # Remove the build subdirectory from last time
@@ -40,12 +50,22 @@ rm -rf build
 # Get libdynd into the libraries subdirectory
 # TODO: Build libdynd in a separate jenkins project,
 #       and use its build artifact here.
-./buildscripts/checkout_libdynd.sh || exit 1
+rm -rf libraries
+mkdir libraries
+pushd libraries
+git clone https://github.com/libdynd/libdynd.git
+popd
+
+# Make sure binstar is installed in the main environment
+echo Updating binstar...
+~/anaconda/bin/conda install --yes binstar
+~/anaconda/bin/binstar --version
 
 # Use conda to create a conda environment of the required
 # python version and containing the dependencies.
 export PYENV_PREFIX=${WORKSPACE}/build/pyenv
-~/anaconda/bin/python ./buildscripts/create_conda_pyenv_retry.py ${PYTHON_VERSION} ${PYENV_PREFIX} || exit 1
+rm -rf ${PYENV_PREFIX}
+~/anaconda/bin/conda create --yes -p ${PYENV_PREFIX} python=${PYTHON_VERSION} cython scipy nose
 export PATH=${PYENV_PREFIX}/bin:${PATH}
 
 if [ -f "${PYENV_PREFIX}/bin/python" ]; then
@@ -64,14 +84,22 @@ else
     export EXTRA=
 fi
 
+# Don't build the C++ tests, slightly faster builds
+export EXTRA="-DDYND_BUILD_TESTS=OFF ${EXTRA}"
+
 # Create a fresh makefile with cmake, and do the build/install
-cd build
-cmake ${EXTRA} -DCMAKE_INSTALL_PREFIX=${PYENV_PREFIX} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} .. || exit 1
-make VERBOSE=1 || exit 1
-make install || exit 1
+pushd build
+cmake ${EXTRA} \
+      -DDYND_INSTALL_LIB=OFF \
+      -DCMAKE_INSTALL_PREFIX=${PYENV_PREFIX} \
+      -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} \
+      -DCMAKE_C_COMPILER=${CC} \
+      -DCMAKE_CXX_COMPILER=${CXX} ..
+make VERBOSE=1
+make install
 
 # Run the unit tests
-${PYTHON_EXECUTABLE} -c 'import dynd;dynd.test(xunitfile="../test_results.xml", exit=1)' || exit 1
+${PYTHON_EXECUTABLE} -c 'import dynd;dynd.test(xunitfile="../test_results.xml", exit=1)'
 
 # Retrieve the version number
 export PYDYND_VERSION=`${PYTHON_EXECUTABLE} -c 'import dynd;print(dynd.__version__)'`
@@ -80,9 +108,9 @@ if [ '${PYDYND_VERSION}' == '' ]; then
     exit 1
 fi
 export PYDYND_VERSION=${PYDYND_VERSION//-/_}
+popd
 
 # Put the conda package by itself in the directory pkgs
-cd ..
 rm -rf pkgs
 mkdir pkgs
 cd pkgs
@@ -98,6 +126,10 @@ else
 fi
 
 # Create a conda package from the build
-~/anaconda/bin/conda package -p ${PYENV_PREFIX} --pkg-name=dynd-python --pkg-version=${PYDYND_VERSION} || exit 1
+~/anaconda/bin/conda package -p ${PYENV_PREFIX} --pkg-name=dynd-python --pkg-version=${PYDYND_VERSION}
+
+# Upload the package to binstar
+~/anaconda/bin/binstar -t ${BINSTAR_MWIEBE_AUTH} upload --force dynd-python*.tar.bz2
+~/anaconda/bin/binstar -t ${BINSTAR_BLAZE_AUTH} upload --force dynd-python*.tar.bz2
 
 cd ..

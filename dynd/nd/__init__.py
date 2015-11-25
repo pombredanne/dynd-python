@@ -1,19 +1,23 @@
-from __future__ import absolute_import
+from dynd.config import *
 
-# Expose types and functions directly from the Cython/C++ module
-from dynd._pydynd import w_array as array, \
-        as_py, as_numpy, empty, empty_like, range, \
-        linspace, fields, groupby, elwise_map, \
-        parse_json, format_json, debug_repr, \
-        BroadcastError, type_of, dtype_of, dshape_of, ndim_of, \
-        view, asarray
+from ..eval_context import eval_context, modify_default_eval_context
+from .array import array, asarray, type_of, dshape_of, as_py, view, \
+    ones, zeros, empty, full, is_c_contiguous, is_f_contiguous, range, \
+    parse_json, squeeze, dtype_of, linspace, fields, ndim_of, as_numpy, \
+    parse as _parse
+from .callable import callable
 
-# All the builtin elementwise gfuncs
-#from elwise_gfuncs import *
+inf = float('inf')
+nan = float('nan')
 
-# All the builtin elementwise reduce gfuncs
-#from elwise_reduce_gfuncs import *
+from .registry import get_published_callables
+from . import functional
 
-from .computed_fields import add_computed_fields, make_computed_fields
+# This is a hack until we fix the Cython compiler issues
+class json(object):
+    @staticmethod
+    def parse(tp, obj):
+        return _parse(tp, obj)
 
-from . import vm
+for key in get_published_callables():
+    globals()[key] = get_published_callables()[key]

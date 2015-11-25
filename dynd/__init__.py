@@ -1,40 +1,65 @@
-from __future__ import absolute_import
+import os
+if os.name == 'nt':
+    # Manually load dlls before loading the extension modules.
+    # TODO: template a file using cmake that stores the location of the
+    # libdynd library used during compilation.
+    import os.path
+    import sys
+    from ctypes import cdll
+    is_64_bit = sys.maxsize > 2**32
+    pydynd_dir = os.path.dirname(os.path.realpath(__file__))
+    if not os.path.isfile(os.path.join(pydynd_dir, 'libdynd.dll')):
+        if is_64_bit:
+            libdynd_path = os.path.join(os.environ['ProgramFiles'], 'libdynd',
+                                        'lib', 'libdynd.dll')
+            if os.path.isfile(libdynd_path):
+                cdll.LoadLibrary(libdynd_path)
+        else:
+            libdynd_path = os.path.join(os.environ['ProgramFiles(x86)'],
+                                        'libdynd', 'lib', 'libdynd.dll')
+            if os.path.isfile(libdynd_path):
+                cdll.LoadLibrary(libdynd_path)
+    else:
+        cdll.LoadLibrary(os.path.join(pydynd_dir, 'libdynd.dll'))
+    cdll.LoadLibrary(os.path.join(pydynd_dir, 'pydynd.dll'))
 
-# dynd._lowlevel is not imported by default
-from . import nd, ndt
-
-from ._pydynd import _dynd_version_string as __libdynd_version__, \
+from .config import _dynd_version_string as __libdynd_version__, \
                 _dynd_python_version_string as __version__, \
                 _dynd_git_sha1 as __libdynd_git_sha1__, \
                 _dynd_python_git_sha1 as __git_sha1__
 
-def fix_version(v):
-    vlst = v.lstrip('v').split('.')
-    vlst = vlst[:-1] + vlst[-1].split('-')
-    if len(vlst) <= 3:
-        vtup = tuple(int(x) for x in vlst)
-    else:
-        # The first 3 numbers are always integer
-        vtup = tuple(int(x) for x in vlst[:3])
-        # The 4th one may not be, so trap it
+def annotate(*args, **kwds):
+    def wrap(func):
+        func.__annotations__ = {}
+
         try:
-            vtup = vtup + (int(vlst[3]),)
-            # Zero pad the post version #, so it sorts lexicographically
-            vlst[3] = 'post%02d' % int(vlst[3])
-        except ValueError:
+            func.__annotations__['return'] = args[0]
+        except IndexError:
             pass
-    return '.'.join(vlst), vtup
 
-__version__, __version_info__ = fix_version(__version__)
-__libdynd_version__, __libdynd_version_info__ = fix_version(__libdynd_version__)
+        if len(args[1:]) > func.__code__.co_argcount:
+            raise TypeError('{0} takes {1} positional arguments but {2} positional annotations were given'.format(func,
+                func.__code__.co_argcount, len(args) - 1))
 
-del fix_version
+        for key, value in zip(func.__code__.co_varnames, args[1:]):
+            func.__annotations__[key] = value
+
+        for key, value in kwds.items():
+            if key not in func.__code__.co_varnames:
+                raise TypeError("{0} got an unexpected keyword annotation '{1}'".format(func, key))
+            if key in func.__annotations__:
+                raise TypeError("{0} got multiple values for annotation '{1}'".format(func, key))
+
+            func.__annotations__[key] = value
+
+        return func
+
+    return wrap
 
 def test(verbosity=1, xunitfile=None, exit=False):
     """
     Runs the full DyND test suite, outputing
     the results of the tests to  sys.stdout.
-
     Parameters
     ----------
     verbosity : int, optional

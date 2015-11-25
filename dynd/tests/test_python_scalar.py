@@ -47,7 +47,7 @@ class TestPythonScalar(unittest.TestCase):
     def test_complex(self):
         # Complex floating point
         a = nd.array(5.125 - 2.5j)
-        self.assertEqual(nd.type_of(a), ndt.cfloat64)
+        self.assertEqual(nd.type_of(a), ndt.complex_float64)
         self.assertEqual(type(nd.as_py(a)), complex)
         self.assertEqual(nd.as_py(a), 5.125 - 2.5j)
 
@@ -73,30 +73,30 @@ class TestPythonScalar(unittest.TestCase):
         x = u'\uc548\ub155 hello'
         # UTF-8
         a = nd.array(x)
-        a = a.ucast(ndt.make_fixedstring(16, 'utf_8'))
+        a = a.ucast(ndt.make_fixed_string(16, 'utf_8'))
         a = a.eval()
-        self.assertEqual(nd.type_of(a), ndt.make_fixedstring(16, 'utf_8'))
+        self.assertEqual(nd.type_of(a), ndt.make_fixed_string(16, 'utf_8'))
         self.assertEqual(type(nd.as_py(a)), unicode)
         self.assertEqual(nd.as_py(a), x)
         # UTF-16
         a = nd.array(x)
-        a = a.ucast(ndt.make_fixedstring(8, 'utf_16'))
+        a = a.ucast(ndt.make_fixed_string(8, 'utf_16'))
         a = a.eval()
-        self.assertEqual(nd.type_of(a), ndt.make_fixedstring(8, 'utf_16'))
+        self.assertEqual(nd.type_of(a), ndt.make_fixed_string(8, 'utf_16'))
         self.assertEqual(type(nd.as_py(a)), unicode)
         self.assertEqual(nd.as_py(a), x)
         # UTF-32
         a = nd.array(x)
-        a = a.ucast(ndt.make_fixedstring(8, 'utf_32'))
+        a = a.ucast(ndt.make_fixed_string(8, 'utf_32'))
         a = a.eval()
-        self.assertEqual(nd.type_of(a), ndt.make_fixedstring(8, 'utf_32'))
+        self.assertEqual(nd.type_of(a), ndt.make_fixed_string(8, 'utf_32'))
         self.assertEqual(type(nd.as_py(a)), unicode)
         self.assertEqual(nd.as_py(a), x)
 
     def test_len(self):
         # Can't get the length of a zero-dimensional dynd array
         a = nd.array(10)
-        self.assertRaises(TypeError, len, a)
+        self.assertRaises(ValueError, len, a)
 
 if __name__ == '__main__':
     unittest.main()

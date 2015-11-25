@@ -1,6 +1,21 @@
 import sys
+import ctypes
 import unittest
 from dynd import nd, ndt
+
+class TestTypeID(unittest.TestCase):
+    def test_callable(self):
+        self.assertEqual(ndt.type_ids['CALLABLE'], ndt.callable.id)
+
+class TestType(unittest.TestCase):
+    def test_tuple(self):
+        tp = ndt.tuple(ndt.int32, ndt.float64)
+
+    def test_struct(self):
+        tp = ndt.struct(x = ndt.int32, y = ndt.float64)
+
+    def test_callable(self):
+        tp = ndt.callable(ndt.void, ndt.int32, ndt.float64, x = ndt.complex128)
 
 class TestDType(unittest.TestCase):
     def test_bool_type_properties(self):
@@ -30,6 +45,16 @@ class TestDType(unittest.TestCase):
         self.assertEqual(ndt.int64.data_size, 8)
         self.assertTrue(ndt.int64.data_alignment in [4,8])
 
+        self.assertEqual(type(ndt.intptr), ndt.type)
+        if ctypes.sizeof(ctypes.c_void_p) == 4:
+            self.assertEqual(str(ndt.intptr), 'int32')
+            self.assertEqual(ndt.intptr.data_size, 4)
+            self.assertEqual(ndt.intptr.data_alignment, 4)
+        else:
+            self.assertEqual(str(ndt.intptr), 'int64')
+            self.assertEqual(ndt.intptr.data_size, 8)
+            self.assertEqual(ndt.intptr.data_alignment, 8)
+
     def test_uint_type_properties(self):
         self.assertEqual(type(ndt.uint8), ndt.type)
         self.assertEqual(str(ndt.uint8), 'uint8')
@@ -51,6 +76,16 @@ class TestDType(unittest.TestCase):
         self.assertEqual(ndt.uint64.data_size, 8)
         self.assertTrue(ndt.uint64.data_alignment in [4,8])
 
+        self.assertEqual(type(ndt.uintptr), ndt.type)
+        if ctypes.sizeof(ctypes.c_void_p) == 4:
+            self.assertEqual(str(ndt.uintptr), 'uint32')
+            self.assertEqual(ndt.uintptr.data_size, 4)
+            self.assertEqual(ndt.uintptr.data_alignment, 4)
+        else:
+            self.assertEqual(str(ndt.uintptr), 'uint64')
+            self.assertEqual(ndt.uintptr.data_size, 8)
+            self.assertEqual(ndt.uintptr.data_alignment, 8)
+
     def test_float_type_properties(self):
         self.assertEqual(type(ndt.float32), ndt.type)
         self.assertEqual(str(ndt.float32), 'float32')
@@ -63,81 +98,99 @@ class TestDType(unittest.TestCase):
         self.assertTrue(ndt.float64.data_alignment in [4,8])
 
     def test_complex_type_properties(self):
-        self.assertEqual(type(ndt.cfloat32), ndt.type)
-        self.assertEqual(str(ndt.cfloat32), 'complex<float32>')
-        self.assertEqual(ndt.cfloat32.data_size, 8)
-        self.assertEqual(ndt.cfloat32.data_alignment, 4)
+        self.assertEqual(type(ndt.complex_float32), ndt.type)
+        self.assertEqual(str(ndt.complex_float32), 'complex[float32]')
+        self.assertEqual(ndt.complex_float32.data_size, 8)
+        self.assertEqual(ndt.complex_float32.data_alignment, 4)
 
-        self.assertEqual(type(ndt.cfloat64), ndt.type)
-        self.assertEqual(str(ndt.cfloat64), 'complex<float64>')
-        self.assertEqual(ndt.cfloat64.data_size, 16)
-        self.assertTrue(ndt.cfloat64.data_alignment in [4,8])
+        self.assertEqual(type(ndt.complex_float64), ndt.type)
+        self.assertEqual(str(ndt.complex_float64), 'complex[float64]')
+        self.assertEqual(ndt.complex_float64.data_size, 16)
+        self.assertTrue(ndt.complex_float64.data_alignment in [4,8])
 
     def test_complex_type_realimag(self):
         a = nd.array(1 + 3j)
-        self.assertEqual(ndt.cfloat64, nd.type_of(a))
+        self.assertEqual(ndt.complex_float64, nd.type_of(a))
         self.assertEqual(1, nd.as_py(a.real))
         self.assertEqual(3, nd.as_py(a.imag))
 
         a = nd.array([1 + 2j, 3 + 4j, 5 + 6j])
-        self.assertEqual(ndt.type('A, cfloat64'), nd.type_of(a))
+        self.assertEqual(ndt.type('3 * complex[float64]'), nd.type_of(a))
         self.assertEqual([1, 3, 5], nd.as_py(a.real))
         self.assertEqual([2, 4, 6], nd.as_py(a.imag))
 
-    def test_fixedstring_type_properties(self):
-        d = ndt.make_fixedstring(10, 'ascii')
-        self.assertEqual(str(d), "string<10,'ascii'>")
+    def test_fixed_string_type_properties(self):
+        d = ndt.make_fixed_string(10, 'ascii')
+        self.assertEqual(str(d), "fixed_string[10,'ascii']")
         self.assertEqual(d.data_size, 10)
         self.assertEqual(d.data_alignment, 1)
-        self.assertEqual(d.encoding, 'ascii')
+#        self.assertEqual(d.encoding, 'ascii')
 
-        d = ndt.make_fixedstring(10, 'ucs_2')
-        self.assertEqual(str(d), "string<10,'ucs-2'>")
+        d = ndt.make_fixed_string(10, 'ucs2')
+        self.assertEqual(str(d), "fixed_string[10,'ucs2']")
         self.assertEqual(d.data_size, 20)
         self.assertEqual(d.data_alignment, 2)
-        self.assertEqual(d.encoding, 'ucs-2')
+ #       self.assertEqual(d.encoding, 'ucs2')
 
-        d = ndt.make_fixedstring(10, 'utf-8')
-        self.assertEqual(str(d), 'string<10>')
+        d = ndt.make_fixed_string(10, 'utf8')
+        self.assertEqual(str(d), 'fixed_string[10]')
         self.assertEqual(d.data_size, 10)
         self.assertEqual(d.data_alignment, 1)
-        self.assertEqual(d.encoding, 'utf-8')
+#        self.assertEqual(d.encoding, 'utf8')
 
-        d = ndt.make_fixedstring(10, 'utf_16')
-        self.assertEqual(str(d), "string<10,'utf-16'>")
+        d = ndt.make_fixed_string(10, 'utf16')
+        self.assertEqual(str(d), "fixed_string[10,'utf16']")
         self.assertEqual(d.data_size, 20)
         self.assertEqual(d.data_alignment, 2)
-        self.assertEqual(d.encoding, 'utf-16')
+ #       self.assertEqual(d.encoding, 'utf16')
 
-        d = ndt.make_fixedstring(10, 'utf_32')
-        self.assertEqual(str(d), "string<10,'utf-32'>")
+        d = ndt.make_fixed_string(10, 'utf32')
+        self.assertEqual(str(d), "fixed_string[10,'utf32']")
         self.assertEqual(d.data_size, 40)
         self.assertEqual(d.data_alignment, 4)
-        self.assertEqual(d.encoding, 'utf-32')
+  #      self.assertEqual(d.encoding, 'utf32')
 
     def test_scalar_types(self):
         self.assertEqual(ndt.bool, ndt.type(bool))
         self.assertEqual(ndt.int32, ndt.type(int))
         self.assertEqual(ndt.float64, ndt.type(float))
-        self.assertEqual(ndt.cfloat64, ndt.type(complex))
+        self.assertEqual(ndt.complex_float64, ndt.type(complex))
+        self.assertEqual(ndt.string, ndt.type(str))
+        self.assertEqual(ndt.bytes, ndt.type(bytearray))
+        if sys.version_info[0] == 2:
+            self.assertEqual(ndt.string, ndt.type(unicode))
+        if sys.version_info[0] >= 3:
+            self.assertEqual(ndt.bytes, ndt.type(bytes))
 
-    def test_fixedbytes_type(self):
-        d = ndt.make_fixedbytes(4, 4)
-        self.assertEqual(str(d), 'fixedbytes<4,4>')
+    def test_datetime_types(self):
+        import datetime
+        self.assertEqual(ndt.date, ndt.type(datetime.date))
+        self.assertEqual(str(ndt.date), "date")
+        self.assertEqual(repr(ndt.date), "ndt.date")
+        self.assertEqual(ndt.time, ndt.type(datetime.time))
+        self.assertEqual(str(ndt.time), "time")
+        self.assertEqual(repr(ndt.time), "ndt.time")
+        self.assertEqual(ndt.datetime, ndt.type(datetime.datetime))
+        self.assertEqual(str(ndt.datetime), "datetime")
+        self.assertEqual(repr(ndt.datetime), "ndt.datetime")
+
+    def test_fixed_bytes_type(self):
+        d = ndt.make_fixed_bytes(4, 4)
+        self.assertEqual(str(d), 'fixed_bytes[4, align=4]')
         self.assertEqual(d.data_size, 4)
         self.assertEqual(d.data_alignment, 4)
 
-        d = ndt.make_fixedbytes(9, 1)
-        self.assertEqual(str(d), 'fixedbytes<9,1>')
+        d = ndt.make_fixed_bytes(9, 1)
+        self.assertEqual(str(d), 'fixed_bytes[9]')
         self.assertEqual(d.data_size, 9)
         self.assertEqual(d.data_alignment, 1)
 
         # Alignment must not be greater than data_size
-        self.assertRaises(RuntimeError, ndt.make_fixedbytes, 1, 2)
+        self.assertRaises(RuntimeError, ndt.make_fixed_bytes, 1, 2)
         # Alignment must be a power of 2
-        self.assertRaises(RuntimeError, ndt.make_fixedbytes, 6, 3)
+        self.assertRaises(RuntimeError, ndt.make_fixed_bytes, 6, 3)
         # Alignment must divide into the data_size
-        self.assertRaises(RuntimeError, ndt.make_fixedbytes, 6, 4)
+        self.assertRaises(RuntimeError, ndt.make_fixed_bytes, 6, 4)
 
     def test_type_type(self):
         d = ndt.type('type')
@@ -156,12 +209,50 @@ class TestDType(unittest.TestCase):
     def test_cstruct_type(self):
         self.assertFalse(ndt.type('{x: int32}') == ndt.type('{y: int32}'))
 
-    def test_categorical_type(self):
-        a = nd.array(["2012-05-10T02:29:42Z"] * 100, "datetime('sec','UTC')")
-        dt1 = ndt.factor_categorical(a.date)
-        #print (dt1)
-        self.assertEqual(nd.as_py(dt1.categories.ucast(ndt.string)),
-                        ['2012-05-10'])
+    def test_callable_type(self):
+        tp = ndt.callable(ndt.int32, ndt.float64)        
+
+    def test_struct_type(self):
+        tp = ndt.make_struct([ndt.int32, ndt.int64], ['x', 'y'])
+        self.assertTrue(nd.as_py(tp.field_types), [ndt.int32, ndt.int64])
+        self.assertTrue(nd.as_py(tp.field_names), ['x', 'y'])
+        self.assertEqual(tp.arrmeta_size, 2 * ctypes.sizeof(ctypes.c_void_p))
+        self.assertTrue(tp.data_size is None)
+
+    def test_tuple_type(self):
+        tp = ndt.type('(int32, int64)')
+        self.assertTrue(nd.as_py(tp.field_types), [ndt.int32, ndt.int64])
+        self.assertEqual(tp.arrmeta_size, 2 * ctypes.sizeof(ctypes.c_void_p))
+        self.assertTrue(tp.data_size is None)
+
+    def test_type_shape(self):
+        # The shape attribute of ndt.type
+        tp = ndt.type('3 * 4 * int32')
+        self.assertEqual(tp.shape, (3, 4))
+        tp = ndt.type('Fixed * 3 * var * int32')
+        self.assertEqual(tp.shape, (-1, 3, -1))
+        tp = ndt.type('var * 3 * 2 * int32')
+        self.assertEqual(tp.shape, (-1, 3, 2))
+
+    def test_symbolic_type(self):
+        tp = ndt.type('(int, real) -> complex')
+        self.assertEqual(tp.type_id, 'callable')
+        self.assertEqual(nd.as_py(tp.pos_types), [ndt.int32, ndt.float64])
+#        self.assertEqual(tp.return_type, ndt.complex_float64)
+        tp = ndt.type('MyType')
+  #      self.assertEqual(tp.type_id, 'typevar')
+ #       self.assertEqual(tp.name, 'MyType')
+        tp = ndt.type('MyDim * int')
+        self.assertEqual(tp.type_id, 'typevar_dim')
+   #     self.assertEqual(tp.name, 'MyDim')
+    #    self.assertEqual(tp.element_type, ndt.int32)
+        tp = ndt.type('... * int')
+        self.assertEqual(tp.type_id, 'ellipsis_dim')
+     #   self.assertEqual(tp.element_type, ndt.int32)
+        tp = ndt.type('MyEll... * int')
+        self.assertEqual(tp.type_id, 'ellipsis_dim')
+       # self.assertEqual(tp.name, 'MyEll')
+      #  self.assertEqual(tp.element_type, ndt.int32)
 
 if __name__ == '__main__':
     unittest.main()

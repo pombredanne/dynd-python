@@ -1,0 +1,15 @@
+package: dynd-python
+user: dynd
+platform:
+    - linux-64
+    - osx-64
+#    - win-64
+script:
+    - conda build conda.recipe -c r -c dynd
+build_targets:
+    files: conda
+    channels: main
+iotimeout: 300
+
+# before_script:
+#     - sudo yum -y install git dos2unix gcc gcc-c++

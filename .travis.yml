@@ -1,0 +1,146 @@
+sudo: false
+
+env:
+  global:
+    secure: UimNDqpXAvtGTLBKAKdq3SPFT8615R/7M7wxtgfyvUOC7LXoqRIcXSXryiXD5CCmRsgATG13qAlu6UY8ve5xCU5xFtLIK0gy8ANyc+ZRZjO9UGVZU9UVswbADvEC+K5RwZTGjCnmfe72dv47NtWW1ZYsH/87WK4dwvGP3fIWNR8=
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - kalakris-cmake
+    packages:
+    - gcc-4.9
+    - g++-4.9
+    - cmake
+
+cache:
+  directories:
+  - $HOME/.cache/pip
+  - $HOME/dynd-python/build
+
+before_install:
+- export CC=gcc-4.9
+- export CXX=g++-4.9
+
+install:
+- travis_retry pip install --install-option="--no-cython-compile" Cython==0.21
+- mkdir libraries
+- pushd libraries
+- git clone --depth=1 https://github.com/libdynd/libdynd.git
+- popd
+- python setup.py install
+
+script:
+- pushd ~
+- python -c 'import dynd; dynd.test(verbosity=2, exit=True)'
+- popd
+
+matrix:
+  include:
+  - language: python
+    python: 2.6
+    compiler: gcc
+    install:
+    - travis_retry pip install --install-option="--no-cython-compile" Cython==0.21
+    - travis_retry pip install -I numpy==1.7.2
+    - travis_retry pip install unittest2
+    - python -c "import numpy; print numpy.__version__"
+    - mkdir libraries
+    - pushd libraries
+    - git clone --depth=1 https://github.com/libdynd/libdynd.git
+    - popd
+    - python setup.py install
+  - language: python
+    python: 2.7
+    compiler: gcc
+  - language: python
+    python: 3.3
+    compiler: gcc
+  - language: python
+    python: 3.4
+    compiler: gcc
+  - language: python
+    compiler: gcc
+    env: CONDA=true
+    install:
+    - wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
+    - bash Miniconda-latest-Linux-x86_64.sh -b
+    - export PATH=$HOME/miniconda2/bin:$PATH
+    - conda install --yes conda-build jinja2
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then conda install --yes anaconda-client; fi
+    script:
+    - conda build conda.recipe --channel dynd/channel/dev
+    - conda install --yes numpy libdynd --channel dynd/channel/dev
+    - conda install $(conda build --output conda.recipe)
+    - pushd ..
+    - python -c "import dynd; dynd.test(verbosity=2)"
+    - popd
+    after_success:
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then anaconda --token $ANACONDA_TOKEN upload $(conda build --output conda.recipe) --user dynd --channel dev; fi
+  - language: python
+    compiler: gcc
+    env: CONDA=true
+    install:
+    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    - bash Miniconda3-latest-Linux-x86_64.sh -b
+    - export PATH=$HOME/miniconda3/bin:$PATH
+    - conda install --yes conda-build jinja2
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then conda install --yes anaconda-client; fi
+    script:
+    - conda build conda.recipe --channel dynd/channel/dev
+    - conda install --yes numpy libdynd --channel dynd/channel/dev
+    - conda install $(conda build --output conda.recipe)
+    - pushd ..
+    - python -c "import dynd; dynd.test(verbosity=2)"
+    - popd
+    after_success:
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then anaconda --token $ANACONDA_TOKEN upload $(conda build --output conda.recipe) --user dynd --channel dev; fi
+  - language: objective-c
+    compiler: clang
+    osx_image: xcode6.4
+    env: OSX CONDA
+    addons:
+    before_install:
+    install:
+    - wget https://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-x86_64.sh
+    - bash Miniconda-latest-MacOSX-x86_64.sh -b
+    - export PATH=$HOME/miniconda2/bin:$PATH
+    - conda install --yes conda-build jinja2
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then conda install --yes anaconda-client; fi
+    script:
+    - conda build conda.recipe --channel dynd/channel/dev
+    - conda install --yes numpy libdynd --channel dynd/channel/dev
+    - conda install $(conda build --output conda.recipe)
+    - pushd ..
+    - python -c "import dynd; dynd.test(verbosity=2)"
+    - popd
+    after_success:
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then anaconda --token $ANACONDA_TOKEN upload $(conda build --output conda.recipe) --user dynd --channel dev; fi
+  - language: objective-c
+    compiler: clang
+    osx_image: xcode6.4
+    env: OSX CONDA
+    addons:
+    before_install:
+    install:
+    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+    - bash Miniconda3-latest-MacOSX-x86_64.sh -b
+    - export PATH=$HOME/miniconda3/bin:$PATH
+    - conda install --yes conda-build jinja2
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then conda install --yes anaconda-client; fi
+    script:
+    - conda build conda.recipe --channel dynd/channel/dev
+    - conda install --yes numpy libdynd --channel dynd/channel/dev
+    - conda install $(conda build --output conda.recipe)
+    - pushd ..
+    - python -c "import dynd; dynd.test(verbosity=2)"
+    - popd
+    after_success:
+    - if [ $TRAVIS_BRANCH == "master" ] && [ $TRAVIS_PULL_REQUEST == "false" ]; then anaconda --token $ANACONDA_TOKEN upload $(conda build --output conda.recipe) --user dynd --channel dev; fi
+
+notifications:
+  email: false
+  flowdock: b08b3ba4fb86fa48121e90b5f67ccb75
+  on_success: change
+  on_failure: always
